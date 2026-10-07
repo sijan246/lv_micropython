@@ -1,4 +1,4 @@
-name: Build ESP32 WROOM-32 with ST7735 & MicroPython 1.29.0
+name: Build ESP32 WROOM-32 with ST7735 & LVGL
 
 on:
   push:
@@ -9,13 +9,13 @@ on:
 
 jobs:
   build-esp32-wroom:
-    runs-on: ubuntu-latest # Replaced with latest to avoid queue delays
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          submodules: 'recursive'
+          submodules: 'recursive' # Automatically pulls internal libraries
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -28,20 +28,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential libreadline-dev libffi-dev git pkg-config parallel
 
-      - name: Clone lvgl_micropython if not already present
-        run: |
-          if [ ! -f "make.py" ]; then
-            git clone --recursive https://github.com/sijan246/lv_micropython.git
-        
-
-      # --- FORCE MICROPYTHON TO VERSION 1.29.0 ---
-      - name: Target MicroPython v1.29.0
-        run: |
-          cd lib/micropython
-          git fetch --tags
-          git checkout v1.29.0
-          git submodule update --init --recursive
-          cd ../..
+      # Cleared out the faulty external git clone logic. 
+      # Since this runs inside your repo, make.py is already here!
 
       - name: Install Python Requirements
         run: |
@@ -49,16 +37,16 @@ jobs:
 
       - name: Build Firmware for Non-PSRAM WROOM-32
         run: |
-          # Clean build files and pass explicit target arguments
-          python3 make.py esp32 clean BOARD=ESP32_GENERIC --DISPLAY=st7735
+          # Sync internal submodules natively via the build script manager
+          python3 make.py esp32 submodules clean BOARD=ESP32_GENERIC --DISPLAY=st7735
           
-          # Compile firmware passing the specific display driver injection flag
+          # Compile the main firmware binary matching your WROOM setup
           python3 make.py esp32 BOARD=ESP32_GENERIC --DISPLAY=st7735
 
       - name: Upload WROOM-32 Firmware Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: esp32-wroom-st7735-mp1.29.0-firmware
+          name: esp32-wroom-st7735-firmware
           path: |
             build-*.bin
             ports/esp32/build-*/firmware.bin
