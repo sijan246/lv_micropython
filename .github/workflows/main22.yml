@@ -1,21 +1,21 @@
-name: Build ESP32 WROOM-32 with ST7735 & LVGL
+name: Build ESP32 WROOM-32 with ST7735 & MicroPython 1.29.0
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, master ]
   workflow_dispatch:
 
 jobs:
   build-esp32-wroom:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest # Replaced with latest to avoid queue delays
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          submodules: 'recursive' # Deep-fetches MicroPython core and LVGL bindings
+          submodules: 'recursive'
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -31,8 +31,17 @@ jobs:
       - name: Clone lvgl_micropython if not already present
         run: |
           if [ ! -f "make.py" ]; then
-            git clone --recursive https://github.com .
-          fi
+            git clone --recursive https://github.com/sijan246/lv_micropython.git
+        
+
+      # --- FORCE MICROPYTHON TO VERSION 1.29.0 ---
+      - name: Target MicroPython v1.29.0
+        run: |
+          cd lib/micropython
+          git fetch --tags
+          git checkout v1.29.0
+          git submodule update --init --recursive
+          cd ../..
 
       - name: Install Python Requirements
         run: |
@@ -49,7 +58,7 @@ jobs:
       - name: Upload WROOM-32 Firmware Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: esp32-wroom-st7735-firmware
+          name: esp32-wroom-st7735-mp1.29.0-firmware
           path: |
             build-*.bin
             ports/esp32/build-*/firmware.bin
