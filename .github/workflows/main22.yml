@@ -1,0 +1,55 @@
+name: Build ESP32 WROOM-32 with ST7735 & LVGL
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-esp32-wroom:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive' # Deep-fetches MicroPython core and LVGL bindings
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-cache: 'pip'
+          python-version: '3.11'
+
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libreadline-dev libffi-dev git pkg-config parallel
+
+      - name: Clone lvgl_micropython if not already present
+        run: |
+          if [ ! -f "make.py" ]; then
+            git clone --recursive https://github.com .
+          fi
+
+      - name: Install Python Requirements
+        run: |
+          pip install pyparsing
+
+      - name: Build Firmware for Non-PSRAM WROOM-32
+        run: |
+          # Clean build files and pass explicit target arguments
+          python3 make.py esp32 clean BOARD=ESP32_GENERIC --DISPLAY=st7735
+          
+          # Compile firmware passing the specific display driver injection flag
+          python3 make.py esp32 BOARD=ESP32_GENERIC --DISPLAY=st7735
+
+      - name: Upload WROOM-32 Firmware Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: esp32-wroom-st7735-firmware
+          path: |
+            build-*.bin
+            ports/esp32/build-*/firmware.bin
